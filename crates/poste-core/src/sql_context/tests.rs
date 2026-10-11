@@ -557,7 +557,8 @@ fn test_detect_insert_column() {
     assert_eq!(
         result.context_type,
         ContextType::InsertColumn {
-            table: "users".into()
+            table: "users".into(),
+            schema: None,
         }
     );
 }
@@ -568,7 +569,8 @@ fn test_detect_insert_column_open_paren() {
     assert_eq!(
         result.context_type,
         ContextType::InsertColumn {
-            table: "posts".into()
+            table: "posts".into(),
+            schema: None,
         }
     );
 }
@@ -579,7 +581,8 @@ fn test_detect_insert_column_closed_paren() {
     assert_eq!(
         result.context_type,
         ContextType::InsertColumn {
-            table: "posts".into()
+            table: "posts".into(),
+            schema: None,
         }
     );
 }
@@ -590,7 +593,8 @@ fn test_detect_insert_column_after_paren() {
     assert_eq!(
         result.context_type,
         ContextType::InsertColumn {
-            table: "posts".into()
+            table: "posts".into(),
+            schema: None,
         }
     );
 }
@@ -1250,7 +1254,59 @@ fn test_detect_copy_column() {
     assert_eq!(
         result.context_type,
         ContextType::InsertColumn {
-            table: "users".to_string()
+            table: "users".to_string(),
+            schema: None,
+        }
+    );
+}
+
+#[test]
+fn test_detect_insert_column_schema_qualified() {
+    // The Dot before the table token used to defeat the into/copy walk-back:
+    // a schema-qualified INSERT fell through to the plain column context and
+    // lost the quick-insert completion.
+    let result = detect_context("INSERT INTO public.users (", 26).unwrap();
+    assert_eq!(
+        result.context_type,
+        ContextType::InsertColumn {
+            table: "users".into(),
+            schema: Some("public".into()),
+        }
+    );
+}
+
+#[test]
+fn test_detect_insert_column_schema_qualified_deep_in_list() {
+    let result = detect_context("INSERT INTO auth.users (id, na", 30).unwrap();
+    assert_eq!(
+        result.context_type,
+        ContextType::InsertColumn {
+            table: "users".into(),
+            schema: Some("auth".into()),
+        }
+    );
+}
+
+#[test]
+fn test_detect_copy_column_schema_qualified() {
+    let result = detect_context("COPY public.users (", 19).unwrap();
+    assert_eq!(
+        result.context_type,
+        ContextType::InsertColumn {
+            table: "users".into(),
+            schema: Some("public".into()),
+        }
+    );
+}
+
+#[test]
+fn test_detect_insert_column_quoted_schema() {
+    let result = detect_context("INSERT INTO \"my schema\".users (", 31).unwrap();
+    assert_eq!(
+        result.context_type,
+        ContextType::InsertColumn {
+            table: "users".into(),
+            schema: Some("my schema".into()),
         }
     );
 }

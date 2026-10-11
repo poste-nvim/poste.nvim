@@ -44,6 +44,7 @@ fn extract_schema(ctx_type: &ContextType) -> Option<String> {
     match ctx_type {
         ContextType::DotColumn { schema, .. } => schema.clone(),
         ContextType::SchemaTable { schema } => Some(schema.clone()),
+        ContextType::InsertColumn { schema, .. } => schema.clone(),
         _ => None,
     }
 }

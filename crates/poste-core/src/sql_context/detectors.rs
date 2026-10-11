@@ -138,7 +138,28 @@ pub(crate) fn try_insert_column(
         }
         let table = tbl_tok.display_text(sql).to_string();
 
-        if let Some(into_idx) = skip_back(tokens, tbl_idx) {
+        // A schema-qualified target (`INSERT INTO public.users (`) puts a Dot
+        // directly before the table token, with the schema ident before the
+        // dot. `into`/`copy` must then be read before the SCHEMA ident —
+        // reading them before the table token sees the Dot, matches neither,
+        // and a schema-qualified insert lost its insert-column context
+        // entirely (the quick-insert completion fell back to plain column).
+        let (mut anchor_idx, mut schema) = (tbl_idx, None);
+        if let Some(before_tbl) = skip_back(tokens, tbl_idx) {
+            if tokens[before_tbl].kind == TokenKind::Dot {
+                if let Some(schema_idx) = skip_back(tokens, before_tbl) {
+                    if matches!(
+                        tokens[schema_idx].kind,
+                        TokenKind::Ident | TokenKind::QuotedIdent
+                    ) {
+                        schema = Some(tokens[schema_idx].display_text(sql).to_string());
+                        anchor_idx = schema_idx;
+                    }
+                }
+            }
+        }
+
+        if let Some(into_idx) = skip_back(tokens, anchor_idx) {
             if tokens[into_idx].kind == TokenKind::Semi {
                 return None;
             }
@@ -152,19 +173,19 @@ pub(crate) fn try_insert_column(
                     if insert_tok.kind == TokenKind::Keyword
                         && kw_eq(insert_tok.text(sql), "insert")
                     {
-                        return Some(ContextType::InsertColumn { table });
+                        return Some(ContextType::InsertColumn { table, schema });
                     }
                 }
             }
         }
 
-        if let Some(prev_idx) = skip_back(tokens, tbl_idx) {
+        if let Some(prev_idx) = skip_back(tokens, anchor_idx) {
             if tokens[prev_idx].kind == TokenKind::Semi {
                 return None;
             }
             let prev_tok = &tokens[prev_idx];
             if prev_tok.kind == TokenKind::Keyword && kw_eq(prev_tok.text(sql), "copy") {
-                return Some(ContextType::InsertColumn { table });
+                return Some(ContextType::InsertColumn { table, schema });
             }
         }
     }
@@ -546,6 +567,7 @@ mod tests {
             try_insert_column(&tokens, cursor, &sql),
             Some(ContextType::InsertColumn {
                 table: "users".into(),
+                schema: None,
             })
         );
     }

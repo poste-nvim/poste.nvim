@@ -67,6 +67,7 @@ pub(crate) fn make_detect_response(result: &ContextResult) -> ContextDetectRespo
     let ctx_schema = match &result.context_type {
         sql_context::ContextType::DotColumn { schema, .. } => schema.clone(),
         sql_context::ContextType::SchemaTable { schema } => Some(schema.clone()),
+        sql_context::ContextType::InsertColumn { schema, .. } => schema.clone(),
         _ => None,
     };
     let tables: Vec<TableRefInfo> = result

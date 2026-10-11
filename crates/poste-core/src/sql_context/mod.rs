@@ -75,6 +75,7 @@ pub enum ContextType {
     },
     InsertColumn {
         table: String,
+        schema: Option<String>,
     },
     Connection,
     Database,
@@ -104,7 +105,7 @@ impl ContextType {
         match self {
             Self::DotColumn { table, .. } => Some(table.clone()),
             Self::SchemaTable { schema } => Some(schema.clone()),
-            Self::InsertColumn { table } => Some(table.clone()),
+            Self::InsertColumn { table, .. } => Some(table.clone()),
             Self::String | Self::Comment => None,
             _ => None,
         }
