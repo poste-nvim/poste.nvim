@@ -3,10 +3,10 @@
 Pure Rust CLI repository: the `poste` binary (crates/poste-core,
 crates/poste-exec, crates/poste-cli) plus the multi-platform release
 pipeline. The Neovim plugin family lives in independent, self-contained
-sibling repos ([poste-db.nvim](https://github.com/beyondlex/poste-db.nvim),
-[poste-redis.nvim](https://github.com/beyondlex/poste-redis.nvim),
-[poste-es.nvim](https://github.com/beyondlex/poste-es.nvim),
-[poste-mail.nvim](https://github.com/beyondlex/poste-mail.nvim), …) — since
+sibling repos ([poste-db.nvim](https://github.com/poste-nvim/poste-db.nvim),
+[poste-redis.nvim](https://github.com/poste-nvim/poste-redis.nvim),
+[poste-es.nvim](https://github.com/poste-nvim/poste-es.nvim),
+[poste-mail.nvim](https://github.com/poste-nvim/poste-mail.nvim), …) — since
 the 2026-09-13 family dissolution they vendor their own Lua and no longer
 require this repo on the runtimepath.
 

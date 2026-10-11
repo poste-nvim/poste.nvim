@@ -1,6 +1,6 @@
 # Poste
 
-[![CI](https://github.com/beyondlex/poste.nvim/actions/workflows/ci.yml/badge.svg)](https://github.com/beyondlex/poste.nvim/actions/workflows/ci.yml)
+[![CI](https://github.com/poste-nvim/poste.nvim/actions/workflows/ci.yml/badge.svg)](https://github.com/poste-nvim/poste.nvim/actions/workflows/ci.yml)
 
 **Send requests from files. Keyboard-first. Multi-protocol.**
 
@@ -17,13 +17,13 @@ you need; they evolve and release independently:
 
 | Plugin | Protocol |
 |--------|----------|
-| [poste-http.nvim](https://github.com/beyondlex/poste-http.nvim) | HTTP / REST (`.http` / `.rest` files) |
-| [poste-db.nvim](https://github.com/beyondlex/poste-db.nvim) | SQL — PostgreSQL, MySQL/MariaDB, SQLite, MSSQL, ClickHouse; dataset browser, editing, schema introspection |
-| [poste-redis.nvim](https://github.com/beyondlex/poste-redis.nvim) | Redis — key browser, command runner |
-| [poste-mq.nvim](https://github.com/beyondlex/poste-mq.nvim) | AMQP — queue inspection, tail |
-| [poste-es.nvim](https://github.com/beyondlex/poste-es.nvim) | Elasticsearch |
-| [poste-mail.nvim](https://github.com/beyondlex/poste-mail.nvim) | Mail |
-| [poste-ai.nvim](https://github.com/beyondlex/poste-ai.nvim) | Optional AI chat with per-connection context injection |
+| [poste-http.nvim](https://github.com/poste-nvim/poste-http.nvim) | HTTP / REST (`.http` / `.rest` files) |
+| [poste-db.nvim](https://github.com/poste-nvim/poste-db.nvim) | SQL — PostgreSQL, MySQL/MariaDB, SQLite, MSSQL, ClickHouse; dataset browser, editing, schema introspection |
+| [poste-redis.nvim](https://github.com/poste-nvim/poste-redis.nvim) | Redis — key browser, command runner |
+| [poste-mq.nvim](https://github.com/poste-nvim/poste-mq.nvim) | AMQP — queue inspection, tail |
+| [poste-es.nvim](https://github.com/poste-nvim/poste-es.nvim) | Elasticsearch |
+| [poste-mail.nvim](https://github.com/poste-nvim/poste-mail.nvim) | Mail |
+| [poste-ai.nvim](https://github.com/poste-nvim/poste-ai.nvim) | Optional AI chat with per-connection context injection |
 
 The plugins shell out to the `poste` binary (installed automatically from
 [this repo's releases](#installation), or point `vim.g.poste_binary` at your

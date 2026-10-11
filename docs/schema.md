@@ -1,10 +1,10 @@
 # `poste` binary contract (the family's only cross-repo interface)
 
 Since the poste.nvim family dissolution (2026-09-13) the sibling plugins —
-[poste-db.nvim](https://github.com/beyondlex/poste-db.nvim),
-[poste-redis.nvim](https://github.com/beyondlex/poste-redis.nvim),
-[poste-es.nvim](https://github.com/beyondlex/poste-es.nvim),
-[poste-mail.nvim](https://github.com/beyondlex/poste-mail.nvim), … — are
+[poste-db.nvim](https://github.com/poste-nvim/poste-db.nvim),
+[poste-redis.nvim](https://github.com/poste-nvim/poste-redis.nvim),
+[poste-es.nvim](https://github.com/poste-nvim/poste-es.nvim),
+[poste-mail.nvim](https://github.com/poste-nvim/poste-mail.nvim), … — are
 self-contained Neovim plugins. They vendor their own Lua; **the one thing they
 all still share is this binary**. Its CLI surface and wire formats are a
 compatibility contract: a change here is a breaking change for every sibling
