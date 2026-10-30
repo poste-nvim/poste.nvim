@@ -138,8 +138,15 @@ stdout; per-statement objects carry `seq`, `sql`, `status`, `latency_ms`, and
 for SELECTs a `resultset` (`columns[].name`, `rows` as arrays, `row_count`,
 `total_rows`). A zero-row SELECT still names its `columns` (recovered via a
 describe; a DML statement carries `columns: []`). A leading UTF-8 BOM is
-stripped before splitting. MySQL `BINARY`/`BLOB` values are emitted as
-uppercase hex strings. Integer cells whose magnitude reaches 2^53 travel as
+stripped before splitting. MySQL cells the driver labels
+`BINARY`/`VARBINARY`/`BLOB` are emitted as uppercase hex **only when the
+bytes are not text** (not valid UTF-8, or containing NUL padding). A cell
+that decodes cleanly travels as that text, because MySQL 8 flags the text
+columns of `SHOW DATABASES`, `SHOW TABLES` and `information_schema` with the
+BINARY flag and sqlx therefore names them `VARBINARY`/`BINARY`/`BLOB` —
+hexing on the label alone turned every database and table name into
+`696E666F726D6174696F6E5F736368656D61`. A `BINARY(16)` UUID still arrives
+as `8885031DAE8A11F1`. Integer cells whose magnitude reaches 2^53 travel as
 their exact-digit STRING (a JSON number rounds silently in the Lua decoder);
 this is uniform across dialects — sqlite INTEGER, pg `INT8`/`BIGINT` and
 mysql `BIGINT` all apply the same max-safe rule, and `BIGINT UNSIGNED`

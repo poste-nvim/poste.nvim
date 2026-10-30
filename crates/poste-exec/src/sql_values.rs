@@ -190,6 +190,26 @@ pub fn mysql_binary_to_hex(bytes: &[u8]) -> String {
     out
 }
 
+/// One cell the driver labelled BINARY/VARBINARY/BLOB.
+///
+/// That label cannot mean "bytes on the wire" on MySQL 8: the server flags
+/// the *text* columns of `SHOW DATABASES`, `SHOW TABLES` and
+/// `information_schema` with BINARY (they collate `utf8mb3_bin`), and sqlx
+/// names such a column `VARBINARY`/`BINARY`/`BLOB`. Hexing on the label
+/// alone turned every database and table name into `696E666F726D6174696F6E…`.
+///
+/// The bytes decide instead. Genuinely binary data (the `BINARY(16)` UUID
+/// behind the hex branch) is not valid UTF-8, and a padded `BINARY`/`BLOB`
+/// carries NULs; both stay hex, so no byte is ever lost to the lossy decode
+/// that started this. Everything that decodes cleanly is text and travels as
+/// text — a `utf8mb4_bin` column and an ASCII payload included.
+pub fn mysql_binary_cell_to_json(bytes: &[u8]) -> Value {
+    match std::str::from_utf8(bytes) {
+        Ok(s) if !s.contains('\0') => json!(s),
+        _ => json!(mysql_binary_to_hex(bytes)),
+    }
+}
+
 pub fn mysql_value_to_json(row: &sqlx::mysql::MySqlRow, idx: usize, col_type: &str) -> Value {
     use sqlx::{Row, ValueRef};
 
@@ -266,7 +286,7 @@ pub fn mysql_value_to_json(row: &sqlx::mysql::MySqlRow, idx: usize, col_type: &s
         }
         "BINARY" | "VARBINARY" | "BLOB" | "TINYBLOB" | "MEDIUMBLOB" | "LONGBLOB" => {
             if let Ok(Some(v)) = row.try_get::<Option<Vec<u8>>, _>(idx) {
-                return json!(mysql_binary_to_hex(&v));
+                return mysql_binary_cell_to_json(&v);
             }
             return Value::Null;
         }
@@ -307,7 +327,10 @@ pub fn mysql_value_to_json(row: &sqlx::mysql::MySqlRow, idx: usize, col_type: &s
 
 #[cfg(test)]
 mod tests {
-    use super::{float_json, mysql_binary_to_hex, opt_float_json, sqlite_value_to_json};
+    use super::{
+        float_json, mysql_binary_cell_to_json, mysql_binary_to_hex, opt_float_json,
+        sqlite_value_to_json,
+    };
     use serde_json::{json, Value};
 
     #[tokio::test]
@@ -352,6 +375,48 @@ mod tests {
             mysql_binary_to_hex(&[0xFF, 0x00, 0x10, 0x1F, 0xA5, 0x5A]),
             "FF00101FA55A"
         );
+    }
+
+    /// MySQL 8 flags the text columns of `SHOW DATABASES` / `SHOW TABLES` /
+    /// `information_schema` with the BINARY flag, so sqlx names them
+    /// VARBINARY/BINARY/BLOB. Hexing on that name showed every database and
+    /// table name as `696E666F726D6174696F6E5F736368656D61` instead of
+    /// `information_schema`. The bytes — not the label — decide now.
+    #[test]
+    fn metadata_text_columns_are_not_hexed() {
+        for text in [
+            &b"information_schema"[..],
+            b"iwebshop",
+            b"BASE TABLE",
+            b"int unsigned",
+            "管理员用户表".as_bytes(),
+        ] {
+            assert_eq!(
+                mysql_binary_cell_to_json(text),
+                json!(std::str::from_utf8(text).unwrap()),
+                "{} must travel as text",
+                String::from_utf8_lossy(text)
+            );
+        }
+    }
+
+    /// The behaviour the hex branch was added for: a `BINARY(16)` UUID is not
+    /// valid UTF-8, and a padded BINARY carries NULs. Both keep every byte by
+    /// travelling as uppercase hex (LEARNINGS §15), never as U+FFFD.
+    #[test]
+    fn real_binary_payloads_still_hex() {
+        assert_eq!(
+            mysql_binary_cell_to_json(&[0x88, 0x85, 0x03, 0x1D, 0xAE, 0x8A, 0x11, 0xF1]),
+            json!("8885031DAE8A11F1")
+        );
+        // a BINARY(8) cell pads with NULs: still bytes, not text
+        assert_eq!(
+            mysql_binary_cell_to_json(b"abc\0\0\0\0\0"),
+            json!("6162630000000000")
+        );
+        assert_eq!(mysql_binary_cell_to_json(&[0xFF]), json!("FF"));
+        // the empty cell is "" either way; pin it so the branch stays total
+        assert_eq!(mysql_binary_cell_to_json(b""), json!(""));
     }
 
     /// The premise `float_json` exists for: serde_json has no spelling for a
