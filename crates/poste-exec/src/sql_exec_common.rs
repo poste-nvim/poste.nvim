@@ -43,7 +43,19 @@ pub const POSTGRES_QUERY: QueryKinds = QueryKinds {
 };
 
 pub const MYSQL_QUERY: QueryKinds = QueryKinds {
-    starts_with: &["SELECT", "WITH", "EXPLAIN", "SHOW", "DESCRIBE", "DESC "],
+    starts_with: &[
+        "SELECT",
+        "WITH",
+        "EXPLAIN",
+        "SHOW",
+        "DESCRIBE",
+        "DESC ",
+        "CHECKSUM TABLE",
+        "CHECK TABLE",
+        "ANALYZE TABLE",
+        "OPTIMIZE TABLE",
+        "REPAIR TABLE",
+    ],
     contains: &["RETURNING"],
     escapes: poste_core::sql_parser::QuoteEscapes::Backslash,
 };
@@ -352,6 +364,17 @@ mod tests {
         assert!(!is_query_with(&POSTGRES_QUERY, "DESCRIBE users"));
         assert!(is_query_with(&MYSQL_QUERY, "DESC users"));
         assert!(is_query_with(&MYSQL_QUERY, "DESCRIBE users"));
+        // MySQL maintenance statements return a result set; taking the execute
+        // path discarded it and reported only Query OK.
+        for stmt in [
+            "CHECKSUM TABLE `users`",
+            "CHECK TABLE `users`",
+            "ANALYZE TABLE `users`",
+            "OPTIMIZE TABLE `users`",
+            "REPAIR TABLE `users`",
+        ] {
+            assert!(is_query_with(&MYSQL_QUERY, stmt), "{stmt}");
+        }
         // RETURNING anywhere (literals blanked first)
         assert!(is_query_with(
             &SQLITE_QUERY,
