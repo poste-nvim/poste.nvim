@@ -615,6 +615,7 @@ pub(crate) fn is_known_keyword(word: &str) -> bool {
         b"SMALLINT",
         b"TABLE",
         b"TABLES",
+        b"TEMPORARY",
         b"TEXT",
         b"THEN",
         b"TIME",

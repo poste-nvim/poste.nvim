@@ -1,5 +1,118 @@
 use super::tokenizer::{is_table_keyword, kw_eq, skip_back, skip_forward, Token, TokenKind};
-use super::ContextType;
+use super::{ContextType, SqlDialect};
+
+/// `CREATE TABLE dst LIKE ▮` and its schema-qualified form are MySQL/MariaDB
+/// only. The generic backward scan sees the predicate `LIKE`, then the
+/// destination after `TABLE`, and answers Keyword; completion needs the source
+/// relation instead.
+pub(crate) fn try_create_table_like(
+    tokens: &[Token],
+    stmt_start: usize,
+    cursor_idx: usize,
+    sql: &str,
+    dialect: SqlDialect,
+) -> Option<ContextType> {
+    if dialect != SqlDialect::MySql {
+        return None;
+    }
+
+    let is_kw = |idx: usize, expected: &str| {
+        tokens
+            .get(idx)
+            .is_some_and(|t| t.kind == TokenKind::Keyword && kw_eq(t.text(sql), expected))
+    };
+
+    let mut head = stmt_start;
+    while head < tokens.len()
+        && matches!(
+            tokens[head].kind,
+            TokenKind::Whitespace | TokenKind::LineComment | TokenKind::BlockComment
+        )
+    {
+        head += 1;
+    }
+    if !is_kw(head, "create") {
+        return None;
+    }
+
+    let mut i = skip_forward(tokens, head)?;
+    if is_kw(i, "temporary") {
+        i = skip_forward(tokens, i)?;
+    }
+    if !is_kw(i, "table") {
+        return None;
+    }
+    i = skip_forward(tokens, i)?;
+    if is_kw(i, "if") {
+        i = skip_forward(tokens, i)?;
+        if !is_kw(i, "not") {
+            return None;
+        }
+        i = skip_forward(tokens, i)?;
+        if !is_kw(i, "exists") {
+            return None;
+        }
+        i = skip_forward(tokens, i)?;
+    }
+
+    // Consume the destination table, including a schema qualifier.
+    if !matches!(tokens[i].kind, TokenKind::Ident | TokenKind::QuotedIdent) {
+        return None;
+    }
+    let mut destination_end = i;
+    let like_idx = loop {
+        let next = skip_forward(tokens, destination_end)?;
+        if tokens[next].kind == TokenKind::Dot {
+            destination_end = skip_forward(tokens, next)?;
+            if !matches!(
+                tokens[destination_end].kind,
+                TokenKind::Ident | TokenKind::QuotedIdent
+            ) {
+                return None;
+            }
+            continue;
+        }
+        if is_kw(next, "like") {
+            break next;
+        }
+        return None;
+    };
+
+    if cursor_idx < like_idx {
+        return None;
+    }
+    let Some(target_idx) = skip_forward(tokens, like_idx) else {
+        return Some(ContextType::Table);
+    };
+    if target_idx > cursor_idx
+        || tokens[target_idx].kind != TokenKind::Ident
+            && tokens[target_idx].kind != TokenKind::QuotedIdent
+    {
+        return Some(ContextType::Table);
+    }
+
+    let Some(dot_idx) = skip_forward(tokens, target_idx) else {
+        return Some(ContextType::Table);
+    };
+    if dot_idx > cursor_idx || tokens[dot_idx].kind != TokenKind::Dot {
+        return Some(ContextType::Table);
+    }
+    if dot_idx == cursor_idx {
+        return Some(ContextType::SchemaTable {
+            schema: tokens[target_idx].display_text(sql).to_string(),
+        });
+    }
+
+    let part_idx = skip_forward(tokens, dot_idx)?;
+    if part_idx >= cursor_idx {
+        return Some(ContextType::SchemaTable {
+            schema: tokens[target_idx].display_text(sql).to_string(),
+        });
+    }
+
+    // The cursor moved past the schema-qualified name into a later clause.
+    None
+}
 
 pub(crate) fn try_dot_column(
     tokens: &[Token],

@@ -829,6 +829,57 @@ fn test_detect_truncate_table() {
     assert_eq!(result.context_type, ContextType::Table);
 }
 
+#[test]
+fn test_detect_create_table_like_source_for_mysql() {
+    for (sql, prefix) in [
+        ("CREATE TABLE dst LIKE ", ""),
+        ("CREATE TABLE dst LIKE mer", "mer"),
+        (
+            "CREATE TEMPORARY TABLE IF NOT EXISTS `dst` LIKE `mer",
+            "mer",
+        ),
+    ] {
+        let result = detect_context_with_dialect(sql, sql.len(), SqlDialect::MySql).unwrap();
+        assert_eq!(result.context_type, ContextType::Table, "{sql}");
+        assert_eq!(result.prefix, prefix, "{sql}");
+    }
+}
+
+#[test]
+fn test_detect_create_table_like_schema_prefix_for_mysql() {
+    for (sql, prefix) in [
+        ("CREATE TABLE dst LIKE app.", ""),
+        ("CREATE TABLE dst LIKE app.us", "us"),
+    ] {
+        let result = detect_context_with_dialect(sql, sql.len(), SqlDialect::MySql).unwrap();
+        assert_eq!(
+            result.context_type,
+            ContextType::SchemaTable {
+                schema: "app".into()
+            },
+            "{sql}"
+        );
+        assert_eq!(result.prefix, prefix, "{sql}");
+    }
+}
+
+#[test]
+fn test_detect_create_table_like_is_mysql_only() {
+    let sql = "CREATE TABLE dst LIKE mer";
+    for dialect in [
+        SqlDialect::Generic,
+        SqlDialect::Postgres,
+        SqlDialect::Sqlite,
+    ] {
+        let result = detect_context_with_dialect(sql, sql.len(), dialect).unwrap();
+        assert_eq!(
+            result.context_type,
+            ContextType::Keyword,
+            "{dialect:?} must not accept MySQL's CREATE TABLE ... LIKE"
+        );
+    }
+}
+
 // ---- Window functions ----
 
 #[test]

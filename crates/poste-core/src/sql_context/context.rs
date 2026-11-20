@@ -1,6 +1,6 @@
 use super::detectors::{
-    try_bare_set, try_directive, try_dot_column, try_for_update_of, try_grant_revoke,
-    try_insert_column, try_show_statement,
+    try_bare_set, try_create_table_like, try_directive, try_dot_column, try_for_update_of,
+    try_grant_revoke, try_insert_column, try_show_statement,
 };
 use super::scanner::detect_scan_backward;
 use super::scope;
@@ -118,6 +118,17 @@ pub fn detect_context_with_dialect(
     );
     let tables = scope.tables;
     let functions = functions::known_functions_for_dialect(dialect);
+
+    if let Some(ctx) = try_create_table_like(&tokens, stmt_start, cursor_idx, sql, dialect) {
+        return Some(ContextResult {
+            context_type: ctx,
+            tables,
+            prefix,
+            functions,
+            in_string: false,
+            in_comment: false,
+        });
+    }
 
     if let Some(ctx) = try_dot_column(&tokens, cursor_idx, sql) {
         return Some(ContextResult {
